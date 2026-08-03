@@ -1,5 +1,5 @@
 import Leave from "../models/Leave.js";
-
+import { sendNotification } from "../utils/sendNotification.js"
 // REQUEST LEAVE (any authenticated employee)
 export const requestLeave = async (req, res) => {
   try {
@@ -59,6 +59,13 @@ export const updateLeaveStatus = async (req, res) => {
     if (!leave) {
       return res.status(404).json({ message: "Leave request not found" });
     }
+
+    await sendNotification(
+      req,
+      leave.employee,
+      `Your leave request has been ${status}`,
+    "leave"
+    )
 
     res.status(200).json({ message: `Leave ${status}`, leave });
   } catch (error) {
