@@ -15,6 +15,7 @@ export const ROLE_PERMISSIONS = {
     "employee:update",
     "employee:delete",
     "salary:view",
+    "salary:update",
     "leave:approve",
     "leave:request",
   ],

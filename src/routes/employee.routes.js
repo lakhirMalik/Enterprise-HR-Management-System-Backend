@@ -5,6 +5,8 @@ import {
   getEmployeeById,
   updateEmployee,
   deleteEmployee,
+  getSalary,
+  updateSalary,
 } from "../controllers/employee.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/role.middleware.js";
@@ -19,5 +21,9 @@ router.get("/", protect, hasPermission("employee:read"), getEmployees);
 router.get("/:id", protect, hasPermission("employee:read"), getEmployeeById);
 router.patch("/:id", protect, hasPermission("employee:update"), validate(updateEmployeeSchema), updateEmployee);
 router.delete("/:id", protect, hasPermission("employee:delete"), deleteEmployee);
+
+router.get("/:id/salary", protect, getSalary);
+router.patch("/:id/salary", protect, hasPermission("salary:update"),updateSalary);
+
 
 export default router;

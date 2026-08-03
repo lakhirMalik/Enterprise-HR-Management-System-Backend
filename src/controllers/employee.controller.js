@@ -68,3 +68,62 @@ export const deleteEmployee = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// GET SALARY (role-based visibility)
+export const getSalary = async (req, res) => {
+  try {
+    const employee = await Employee.findById(req.params.id).populate("user", "name email role");
+
+    if(!employee) {
+      return res.status(404).json({ message: "Employee not found"});
+    }
+
+    const requesterId = req.user.id;
+    const requesterRole = req.user.role;
+
+    //Admin and HR can see everyone's salary
+    if (requesterRole === "super_admin" || requesterRole === "hr") {
+      return res.status(200).json({ salary: employee.salary, employee });
+    }
+
+    //Employee can only see their own salary
+    if(employee.user._id.toString() === requesterId) {
+      return res.status(200).json({ salary: employee.salary, employee });
+    }
+
+    //Manager can see their teams's salary (employee where manager === requesterId)
+    if (requesterRole === "manager" && employee.manager?.toString() === requesterId) {
+      return res.status(200).json({ salary: employee.salary, employee });
+    }
+  
+    return res.status(403).json({ message: "Access denied: cannot view this salary"})
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+//UPDATE SALARY (NR/Admin only)
+export const updateSalary = async (req, res) => {
+
+  try {
+    const { salary } = req.body;
+
+    if (typeof salary !== "number" || salary <= 0) {
+      return res.status(400).json({ message: "salary must be a positive number" });
+    }
+
+    const employee = await Employee.findByIdAndUpdate(
+      req.params.id,
+      { salary },
+      { new: true, runValidators: true }
+    );
+
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    res.status(200).json({ message: "salary updated", employee });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
