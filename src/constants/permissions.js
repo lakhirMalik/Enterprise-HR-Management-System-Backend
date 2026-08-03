@@ -1,0 +1,24 @@
+export const ROLE_PERMISSIONS = {
+  super_admin: [
+    "employee:create",
+    "employee:read",
+    "employee:update",
+    "employee:delete",
+    "salary:view",
+    "salary:update",
+    "leave:approve",
+    "leave:request",
+  ],
+  hr: [
+    "employee:create",
+    "employee:read",
+    "employee:update",
+    "employee:delete",
+    "salary:view",
+    "leave:approve",
+    "leave:request",
+  ],
+  manager: ["employee:read", "leave:approve", "leave:request"],
+  employee: ["employee:read", "leave:request"],
+  candidate: [],
+};
