@@ -1,5 +1,6 @@
 import Leave from "../models/Leave.js";
-import { sendNotification } from "../utils/sendNotification.js"
+import User from "../models/User.js";
+import { sendNotification } from "../utils/sendNotification.js";
 // REQUEST LEAVE (any authenticated employee)
 export const requestLeave = async (req, res) => {
   try {
@@ -11,6 +12,18 @@ export const requestLeave = async (req, res) => {
       endDate,
       reason,
     });
+
+    // Notify all HR and super_admin users
+    const hrUsers = await User.find({ role: { $in: ["hr", "super_admin"] } });
+
+    for (const hrUser of hrUsers) {
+      await sendNotification(
+        req,
+        hrUser._id,
+        `${req.user.role === "employee" ? "An employee" : "A user"} submitted a new leave request`,
+        "leave"
+      );
+    }
 
     res.status(201).json({ message: "Leave request submitted", leave });
   } catch (error) {
