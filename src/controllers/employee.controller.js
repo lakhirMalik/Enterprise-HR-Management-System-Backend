@@ -21,7 +21,9 @@ export const createEmployee = async (req, res) => {
 // READ ALL
 export const getEmployees = async (req, res) => {
   try {
-    const employees = await Employee.find().populate("user", "name email role").populate("manager", "name email");
+    const employees = await Employee.find({ isDeleted: false })
+      .populate("user", "name email role")
+      .populate("manager", "name email");
     res.status(200).json({ employees });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -31,7 +33,9 @@ export const getEmployees = async (req, res) => {
 // READ ONE
 export const getEmployeeById = async (req, res) => {
   try {
-    const employee = await Employee.findById(req.params.id).populate("user", "name email role").populate("manager", "name email");
+    const employee = await Employee.findOne({ _id: req.params.id, isDeleted: false })
+      .populate("user", "name email role")
+      .populate("manager", "name email");
     if (!employee) {
       return res.status(404).json({ message: "Employee not found" });
     }
@@ -57,11 +61,16 @@ export const updateEmployee = async (req, res) => {
   }
 };
 
-// DELETE
+// DELETE (soft delete)
 export const deleteEmployee = async (req, res) => {
   try {
-    const employee = await Employee.findByIdAndDelete(req.params.id);
-    if (!employee) {
+    const employee = await Employee.findByIdAndUpdate(
+      req.params.id,
+      { isDeleted: true, deletedAt: new Date() },
+      { new: true }
+    );
+
+    if (!employee || employee.isDeleted === false) {
       return res.status(404).json({ message: "Employee not found" });
     }
 
@@ -137,6 +146,40 @@ export const updateSalary = async (req, res) => {
     });
 
     res.status(200).json({ message: "salary updated", employee });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// GET MY TEAM (manager sees only their direct reports)
+export const getMyTeam = async (req, res) => {
+  try {
+    const team = await Employee.find({ manager: req.user.id })
+      .populate("user", "name email role")
+      .populate("manager", "name email");
+
+    res.status(200).json({ team });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// RESTORE (undo soft delete)
+export const restoreEmployee = async (req, res) => {
+  try {
+    const employee = await Employee.findByIdAndUpdate(
+      req.params.id,
+      { isDeleted: false, deletedAt: null },
+      { new: true }
+    );
+
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    await logAudit(req.user.id, "employee:restore", "Employee", employee._id, {});
+
+    res.status(200).json({ message: "Employee restored", employee });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
