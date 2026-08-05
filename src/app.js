@@ -8,6 +8,8 @@ import notificationRoutes from "./routes/notification.routes.js";
 import { notFound, errorHandler } from "./middlewares/error.middleware.js";
 import taskroutes from "./routes/task.routes.js";
 import attendanceroutes from "./routes/attendance.routes.js";
+import auditLogroutes from "./routes/auditLog.routes.js";
+
 const app = express();
 
 app.use(express.json());
@@ -29,6 +31,7 @@ app.use("/api/leaves", leaveRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/tasks", taskroutes);
 app.use("/api/attendance", attendanceroutes);
+app.use("/api/audit-logs", auditLogroutes);
 
 app.use(notFound);
 app.use(errorHandler);

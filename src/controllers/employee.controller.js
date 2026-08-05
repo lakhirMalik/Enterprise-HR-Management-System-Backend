@@ -1,4 +1,5 @@
 import Employee from "../models/Employee.js";
+import { logAudit } from "../utils/logAudit.js";
 
 // CREATE
 export const createEmployee = async (req, res) => {
@@ -63,6 +64,12 @@ export const deleteEmployee = async (req, res) => {
     if (!employee) {
       return res.status(404).json({ message: "Employee not found" });
     }
+
+    await logAudit(req.user.id, "employee:delete", "Employee", employee._id, {
+      department: employee.department,
+      position: employee.position,
+    });
+
     res.status(200).json({ message: "Employee deleted" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -102,15 +109,21 @@ export const getSalary = async (req, res) => {
   }
 };
 
-//UPDATE SALARY (NR/Admin only)
+//UPDATE SALARY (HR/Admin only)
 export const updateSalary = async (req, res) => {
-
   try {
     const { salary } = req.body;
 
     if (typeof salary !== "number" || salary <= 0) {
-      return res.status(400).json({ message: "salary must be a positive number" });
+      return res.status(400).json({ message: "Salary must be a positive number" });
     }
+
+    const oldEmployee = await Employee.findById(req.params.id);
+    if (!oldEmployee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    const oldSalary = oldEmployee.salary;
 
     const employee = await Employee.findByIdAndUpdate(
       req.params.id,
@@ -118,9 +131,10 @@ export const updateSalary = async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    if (!employee) {
-      return res.status(404).json({ message: "Employee not found" });
-    }
+    await logAudit(req.user.id, "salary:update", "Employee", employee._id, {
+      before: oldSalary,
+      after: salary,
+    });
 
     res.status(200).json({ message: "salary updated", employee });
   } catch (error) {
