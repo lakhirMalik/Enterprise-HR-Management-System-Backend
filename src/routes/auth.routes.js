@@ -7,6 +7,10 @@ import {
   verifyEmail,
   forgotPassword,
   resetPassword,
+  setup2FA,
+  verify2FA,
+  disable2FA,
+  verify2FALogin,
 } from "../controllers/auth.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/role.middleware.js";
@@ -27,6 +31,11 @@ router.get("/verify-email/:token", verifyEmail);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 
+router.post("/2fa/setup", protect, setup2FA);
+router.post("/2fa/verify", protect, verify2FA);
+router.post("/2fa/disable", protect, disable2FA);
+router.post("/2fa/login", verify2FALogin);
+
 router.get("/me", protect, checkAccountStatus, (req, res) => {
   res.status(200).json({ message: "You are authenticated", user: req.user });
 });
@@ -34,12 +43,13 @@ router.get("/me", protect, checkAccountStatus, (req, res) => {
 router.get("/hr-only", protect, authorize("hr", "super_admin"), (req, res) => {
   res.status(200).json({ message: "Welcome, HR or Super Admin!" });
 });
+
 router.delete("/test-delete-employee", protect, hasPermission("employee:delete"), (req, res) => {
-  res.status(200).json({message: "You have permission to delete employees"})
+  res.status(200).json({ message: "You have permission to delete employees" });
 });
 
 router.get("/profile/:id", protect, isOwner("id"), (req, res) => {
-  res.status(200).json({message: "This is your own profile", userId: req.params.id});
+  res.status(200).json({ message: "This is your own profile", userId: req.params.id });
 });
 
 export default router;

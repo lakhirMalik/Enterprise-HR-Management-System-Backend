@@ -4,6 +4,8 @@ import crypto from "crypto";
 import User from "../models/User.js";
 import { generateAccessToken, generateRefreshToken } from "../utils/generateTokens.js";
 import { sendEmail } from "../utils/sendEmail.js";
+import speakeasy from "speakeasy";
+import qrcode from "qrcode";
 
 // REGISTER
 export const registerUser = async (req, res) => {
@@ -89,6 +91,15 @@ export const loginUser = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // If 2FA is enabled, don't issue tokens yet — require a second step
+    if (user.twoFactorEnabled) {
+      return res.status(200).json({
+        message: "2FA required",
+        twoFactorRequired: true,
+        userId: user._id,
+      });
     }
 
     const accessToken = generateAccessToken(user);
@@ -211,6 +222,129 @@ export const resetPassword = async (req, res) => {
     await user.save();
 
     res.status(200).json({ message: "Password reset successful. Please log in." });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// SETUP 2FA (generates secret + QR code)
+export const setup2FA = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const secret = speakeasy.generateSecret({
+      name: `HR/OS (${user.email})`,
+    });
+
+    user.twoFactorSecret = secret.base32;
+    await user.save();
+
+    const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
+
+    res.status(200).json({ message: "Scan this QR code with your authenticator app", qrCode: qrCodeUrl });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// VERIFY AND ENABLE 2FA
+export const verify2FA = async (req, res) => {
+  try {
+    const { token } = req.body;
+    const user = await User.findById(req.user.id);
+
+    if (!user || !user.twoFactorSecret) {
+      return res.status(400).json({ message: "2FA setup not started" });
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: "base32",
+      token,
+      window: 1,
+    });
+
+    if (!verified) {
+      return res.status(400).json({ message: "Invalid 2FA code" });
+    }
+
+    user.twoFactorEnabled = true;
+    await user.save();
+
+    res.status(200).json({ message: "2FA enabled successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// DISABLE 2FA
+export const disable2FA = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.twoFactorEnabled = false;
+    user.twoFactorSecret = null;
+    await user.save();
+
+    res.status(200).json({ message: "2FA disabled" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// VERIFY 2FA DURING LOGIN
+export const verify2FALogin = async (req, res) => {
+  try {
+    const { userId, token } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user || !user.twoFactorEnabled) {
+      return res.status(400).json({ message: "2FA not enabled for this account" });
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: "base32",
+      token,
+      window: 1,
+    });
+
+    if (!verified) {
+      return res.status(400).json({ message: "Invalid 2FA code" });
+    }
+
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.status(200).json({
+      message: "Login successful",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
