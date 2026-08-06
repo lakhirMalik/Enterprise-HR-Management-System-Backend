@@ -13,6 +13,7 @@ import taskRoutes from "./routes/task.routes.js";
 import attendanceRoutes from "./routes/attendance.routes.js";
 import auditLogRoutes from "./routes/auditLog.routes.js";
 import { notFound, errorHandler } from "./middlewares/error.middleware.js";
+import jobRoutes from "./routes/job.routes.js";
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/jobs", jobRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

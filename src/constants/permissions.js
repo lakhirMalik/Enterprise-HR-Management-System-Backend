@@ -12,6 +12,8 @@ export const ROLE_PERMISSIONS = {
     "task:view",
     "attendance:mark",
     "attendance:view",
+    "job:manage",
+    "application:review",
   ],
   hr: [
     "employee:create",
@@ -26,6 +28,8 @@ export const ROLE_PERMISSIONS = {
     "task:view",
     "attendance:mark",
     "attendance:view",
+    "job:manage",
+    "application:review",
   ],
   manager: ["employee:read", "leave:approve", "leave:request", "task:assign", "task:view", "attendance:view"],
   employee: ["employee:read", "leave:request", "task:view", "attendance:mark"],
