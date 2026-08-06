@@ -32,16 +32,16 @@ export const getMyTasks = async (req, res) => {
 };
 
 // Get ALL TASKS (manager/hr/admin)
-export const getAllTasks = async (req,res) => {
-    try {
-        const tasks = await Tasks.find()
-        .populate("assignedTo", "name email role")
-        .populate("assignedBy", "name email, role")
-        .sort({ createdAt: -1});
+export const getAllTasks = async (req, res) => {
+  try {
+    const tasks = await Task.find()
+      .populate("assignedTo", "name email role")
+      .populate("assignedBy", "name email role")
+      .sort({ createdAt: -1 });
     res.status(200).json({ tasks });
-    } catch (error) {
-        res.status(500).json({ message: "Server error", error: error.message });
-    }
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
 };
  
 // UPDATE TASKS STATUS (assign updates their own tasks)
