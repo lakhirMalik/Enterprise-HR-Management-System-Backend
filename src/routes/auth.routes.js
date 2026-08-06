@@ -12,6 +12,9 @@ import {
   disable2FA,
   verify2FALogin,
   updateProfile,
+  getMySessions,
+  revokeSession,
+  revokeAllSessions,
 } from "../controllers/auth.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/role.middleware.js";
@@ -33,6 +36,9 @@ router.get("/verify-email/:token", verifyEmail);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 router.patch("/profile", protect, requireEmailVerified, updateProfile);
+router.get("/sessions", protect, getMySessions);
+router.delete("/sessions/:id", protect, revokeSession);
+router.delete("/sessions", protect, revokeAllSessions);
 
 router.post("/2fa/setup", protect, setup2FA);
 router.post("/2fa/verify", protect, verify2FA);

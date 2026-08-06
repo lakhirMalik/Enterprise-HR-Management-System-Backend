@@ -6,6 +6,7 @@ import { generateAccessToken, generateRefreshToken } from "../utils/generateToke
 import { sendEmail } from "../utils/sendEmail.js";
 import speakeasy from "speakeasy";
 import qrcode from "qrcode";
+import Session from "../models/Session.js";
 
 // REGISTER
 export const registerUser = async (req, res) => {
@@ -93,7 +94,6 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // If 2FA is enabled, don't issue tokens yet — require a second step
     if (user.twoFactorEnabled) {
       return res.status(200).json({
         message: "2FA required",
@@ -104,6 +104,13 @@ export const loginUser = async (req, res) => {
 
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
+
+    await Session.create({
+      user: user._id,
+      refreshToken,
+      userAgent: req.headers["user-agent"] || "Unknown device",
+      ip: req.ip || "Unknown",
+    });
 
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
@@ -165,10 +172,18 @@ export const refreshToken = async (req, res) => {
 };
 
 // LOGOUT
-export const logoutUser = (req, res) => {
-  res.clearCookie("accessToken");
-  res.clearCookie("refreshToken");
-  res.status(200).json({ message: "Logged out successfully" });
+export const logoutUser = async (req, res) => {
+  try {
+    const token = req.cookies.refreshToken;
+    if (token) {
+      await Session.deleteOne({ refreshToken: token });
+    }
+    res.clearCookie("accessToken");
+    res.clearCookie("refreshToken");
+    res.status(200).json({ message: "Logged out successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
 };
 
 // FORGOT PASSWORD
@@ -376,6 +391,41 @@ export const updateProfile = async (req, res) => {
       message: "Profile updated",
       user: { id: user._id, name: user.name, email: user.email, role: user.role },
     });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// GET MY ACTIVE SESSIONS
+export const getMySessions = async (req, res) => {
+  try {
+    const sessions = await Session.find({ user: req.user.id }).sort({ lastActive: -1 });
+    res.status(200).json({ sessions });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// REVOKE ONE SESSION
+export const revokeSession = async (req, res) => {
+  try {
+    const session = await Session.findOneAndDelete({ _id: req.params.id, user: req.user.id });
+    if (!session) {
+      return res.status(404).json({ message: "Session not found" });
+    }
+    res.status(200).json({ message: "Session revoked" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// REVOKE ALL SESSIONS (force logout everywhere)
+export const revokeAllSessions = async (req, res) => {
+  try {
+    await Session.deleteMany({ user: req.user.id });
+    res.clearCookie("accessToken");
+    res.clearCookie("refreshToken");
+    res.status(200).json({ message: "Logged out from all devices" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
