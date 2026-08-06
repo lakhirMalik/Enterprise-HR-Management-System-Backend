@@ -11,6 +11,7 @@ import {
   verify2FA,
   disable2FA,
   verify2FALogin,
+  updateProfile,
 } from "../controllers/auth.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/role.middleware.js";
@@ -20,6 +21,7 @@ import { loginLimiter } from "../middlewares/rateLimit.middleware.js";
 import { checkAccountStatus } from "../middlewares/account.middleware.js";
 import { hasPermission } from "../middlewares/permission.middleware.js";
 import { isOwner } from "../middlewares/owner.middleware.js";
+import { requireEmailVerified } from "../middlewares/emailVerified.middleware.js";
 
 const router = express.Router();
 
@@ -30,6 +32,7 @@ router.post("/logout", logoutUser);
 router.get("/verify-email/:token", verifyEmail);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
+router.patch("/profile", protect, requireEmailVerified, updateProfile);
 
 router.post("/2fa/setup", protect, setup2FA);
 router.post("/2fa/verify", protect, verify2FA);

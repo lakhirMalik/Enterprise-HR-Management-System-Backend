@@ -349,3 +349,34 @@ export const verify2FALogin = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// UPDATE OWN PROFILE
+export const updateProfile = async (req, res) => {
+  try {
+    const { name, email } = req.body;
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (name) user.name = name;
+    if (email && email !== user.email) {
+      const existing = await User.findOne({ email });
+      if (existing) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+      user.email = email;
+      user.isVerified = false; // re-verify if email changes
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      message: "Profile updated",
+      user: { id: user._id, name: user.name, email: user.email, role: user.role },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
