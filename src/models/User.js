@@ -41,6 +41,19 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    twoFactorMethod: {
+  type: String,
+  enum: ["app", "email"],
+  default: "app",
+},
+twoFactorEmailCode: {
+  type: String,
+  default: null,
+},
+twoFactorEmailCodeExpires: {
+  type: Date,
+  default: null,
+},
   },
   { timestamps: true }
 );

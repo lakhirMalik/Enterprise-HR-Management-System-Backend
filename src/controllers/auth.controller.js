@@ -95,12 +95,26 @@ export const loginUser = async (req, res) => {
     }
 
     if (user.twoFactorEnabled) {
-      return res.status(200).json({
-        message: "2FA required",
-        twoFactorRequired: true,
-        userId: user._id,
-      });
-    }
+  if (user.twoFactorMethod === "email") {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    user.twoFactorEmailCode = code;
+    user.twoFactorEmailCodeExpires = Date.now() + 10 * 60 * 1000;
+    await user.save();
+
+    await sendEmail(
+      user.email,
+      "Your login code",
+      `<p>Hi ${user.name},</p><p>Your login verification code is:</p><h2>${code}</h2><p>This code expires in 10 minutes.</p>`
+    );
+  }
+
+  return res.status(200).json({
+    message: "2FA required",
+    twoFactorRequired: true,
+    twoFactorMethod: user.twoFactorMethod,
+    userId: user._id,
+  });
+}
 
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
@@ -259,7 +273,7 @@ export const setup2FA = async (req, res) => {
 
     const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
 
-    res.status(200).json({ message: "Scan this QR code with your authenticator app", qrCode: qrCodeUrl });
+    //res.status(200).json({ message: "Scan this QR code with your authenticator app", qrCode: qrCodeUrl });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -323,12 +337,24 @@ export const verify2FALogin = async (req, res) => {
       return res.status(400).json({ message: "2FA not enabled for this account" });
     }
 
-    const verified = speakeasy.totp.verify({
-      secret: user.twoFactorSecret,
-      encoding: "base32",
-      token,
-      window: 1,
-    });
+    let verified = false;
+
+    if (user.twoFactorMethod === "email") {
+      verified =
+        user.twoFactorEmailCode === token && user.twoFactorEmailCodeExpires > Date.now();
+      if (verified) {
+        user.twoFactorEmailCode = null;
+        user.twoFactorEmailCodeExpires = null;
+        await user.save();
+      }
+    } else {
+      verified = speakeasy.totp.verify({
+        secret: user.twoFactorSecret,
+        encoding: "base32",
+        token,
+        window: 1,
+      });
+    }
 
     if (!verified) {
       return res.status(400).json({ message: "Invalid 2FA code" });
@@ -426,6 +452,57 @@ export const revokeAllSessions = async (req, res) => {
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
     res.status(200).json({ message: "Logged out from all devices" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// SETUP EMAIL-BASED 2FA (sends a code instead of QR)
+export const setup2FAEmail = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    user.twoFactorEmailCode = code;
+    user.twoFactorEmailCodeExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    await user.save();
+
+    await sendEmail(
+      user.email,
+      "Your 2FA setup code",
+      `<p>Hi ${user.name},</p><p>Your verification code is:</p><h2>${code}</h2><p>This code expires in 10 minutes.</p>`
+    );
+
+    res.status(200).json({ message: "Verification code sent to your email" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// VERIFY AND ENABLE EMAIL 2FA
+export const verify2FAEmail = async (req, res) => {
+  try {
+    const { code } = req.body;
+    const user = await User.findById(req.user.id);
+
+    if (!user || !user.twoFactorEmailCode) {
+      return res.status(400).json({ message: "2FA setup not started" });
+    }
+
+    if (user.twoFactorEmailCode !== code || user.twoFactorEmailCodeExpires < Date.now()) {
+      return res.status(400).json({ message: "Invalid or expired code" });
+    }
+
+    user.twoFactorEnabled = true;
+    user.twoFactorMethod = "email";
+    user.twoFactorEmailCode = null;
+    user.twoFactorEmailCodeExpires = null;
+    await user.save();
+
+    res.status(200).json({ message: "Email 2FA enabled successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
