@@ -23,6 +23,7 @@ app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(express.json());
 app.use(cookieParser());
 app.use(sanitizeInput);
+app.use("/uploads", express.static("uploads"));
 app.use(
   cors({
     origin: "http://localhost:5173",

@@ -17,6 +17,7 @@ import {
   applyJobSchema,
   updateApplicationStatusSchema,
 } from "../validators/job.validator.js";
+import { uploadResume } from "../middlewares/upload.middleware.js";
 
 const router = express.Router();
 
@@ -30,6 +31,6 @@ router.get("/", getJobs);
 router.get("/:id", getJobById);
 router.patch("/:id/close", protect, hasPermission("job:manage"), closeJob);
 router.get("/:id/applications", protect, hasPermission("application:review"), getJobApplications);
-router.post("/:id/apply", protect, validate(applyJobSchema), applyToJob);
+router.post("/:id/apply", protect, uploadResume, applyToJob);
 
 export default router;

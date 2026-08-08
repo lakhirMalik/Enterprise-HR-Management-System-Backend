@@ -16,6 +16,18 @@ const applicationSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    phone: {
+      type: String,
+      default: "",
+    },
+    portfolioUrl: {
+      type: String,
+      default: "",
+    },
+    resumeUrl: {
+      type: String,
+      default: null,
+    },
     status: {
       type: String,
       enum: ["submitted", "reviewing", "rejected", "accepted"],
@@ -25,7 +37,6 @@ const applicationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// One candidate can't apply to the same job twice
 applicationSchema.index({ job: 1, candidate: 1 }, { unique: true });
 
 const Application = mongoose.model("Application", applicationSchema);

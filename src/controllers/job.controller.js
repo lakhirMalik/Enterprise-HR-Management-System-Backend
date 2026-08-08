@@ -60,7 +60,7 @@ export const closeJob = async (req, res) => {
 // APPLY TO JOB (candidate, must be authenticated)
 export const applyToJob = async (req, res) => {
   try {
-    const { coverLetter } = req.body;
+    const { coverLetter, phone, portfolioUrl } = req.body;
     const jobId = req.params.id;
 
     const job = await Job.findById(jobId);
@@ -73,10 +73,15 @@ export const applyToJob = async (req, res) => {
       return res.status(400).json({ message: "You already applied to this job" });
     }
 
+    const resumeUrl = req.file ? `/uploads/resumes/${req.file.filename}` : null;
+
     const application = await Application.create({
       job: jobId,
       candidate: req.user.id,
       coverLetter,
+      phone,
+      portfolioUrl,
+      resumeUrl,
     });
 
     res.status(201).json({ message: "Application submitted", application });
@@ -133,3 +138,4 @@ export const updateApplicationStatus = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
